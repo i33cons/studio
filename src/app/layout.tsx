@@ -25,8 +25,8 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"
           rel="stylesheet"
         />
-        <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js" defer></script>
-        <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js" defer></script>
+        <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+        <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
       </head>
       <body className="font-body antialiased">
         {children}
