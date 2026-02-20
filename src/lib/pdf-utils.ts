@@ -1,13 +1,10 @@
 import { PDFDocument, degrees } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist';
+import * as pdfjs from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry';
 
-// By installing pdfjs-dist via npm, we can avoid CDN loading issues.
-// We set the workerSrc to a reliable CDN URL as a pragmatic way
-// to avoid complex bundler configurations for the worker file.
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
+  pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 }
-
 /**
  * Loads a PDF file into a pdf-lib document object.
  */
@@ -23,14 +20,13 @@ export async function loadPdf(file: File) {
 export async function renderPageAsThumbnail(
   doc: any, // pdf-lib PDFDocument
   pageNumber: number,
-  rotation: number
 ): Promise<string> {
   const pdfBytes = await doc.save();
   const data = new Uint8Array(pdfBytes);
-  const pdf = await pdfjsLib.getDocument({ data }).promise;
+  const pdf = await pdfjs.getDocument({ data }).promise;
   const page = await pdf.getPage(pageNumber);
 
-  const viewport = page.getViewport({ scale: 0.5, rotation });
+  const viewport = page.getViewport({ scale: 0.5 });
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
   canvas.height = viewport.height;
@@ -65,11 +61,8 @@ export async function deletePageInDoc(doc: any, pageIndex: number) {
 /**
  * Reorders a page in a pdf-lib document.
  */
-export async function reorderPageInDoc(doc: any, fromIndex: number, toIndex: number) {
-  const [page] = await doc.copyPages(doc, [fromIndex]);
-  doc.insertPage(toIndex, page);
-  // Adjust index for removal based on whether we moved the page forwards or backwards
-  doc.removePage(fromIndex > toIndex ? fromIndex + 1 : fromIndex);
+export function reorderPageInDoc(doc: any, fromIndex: number, toIndex: number) {
+  doc.movePage(fromIndex, toIndex);
   return { newDoc: doc };
 }
 

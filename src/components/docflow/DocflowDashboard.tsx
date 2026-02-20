@@ -39,7 +39,7 @@ export function DocflowDashboard() {
         const { pdfLibDoc } = await loadPdf(file);
         const pageThumbnails: PageThumbnail[] = [];
         for (let i = 0; i < pdfLibDoc.getPageCount(); i++) {
-          const thumbnailUrl = await renderPageAsThumbnail(pdfLibDoc, i + 1, 0);
+          const thumbnailUrl = await renderPageAsThumbnail(pdfLibDoc, i + 1);
           pageThumbnails.push({
             id: `${file.name}-page-${i}`,
             pageIndex: i,
@@ -93,7 +93,7 @@ export function DocflowDashboard() {
     const { newDoc, newRotation } = await rotatePageInDoc(docToUpdate.pdfLibDoc, originalPageIndex);
     docToUpdate.pdfLibDoc = newDoc;
 
-    const newThumbnailUrl = await renderPageAsThumbnail(docToUpdate.pdfLibDoc, originalPageIndex + 1, newRotation);
+    const newThumbnailUrl = await renderPageAsThumbnail(docToUpdate.pdfLibDoc, originalPageIndex + 1);
     
     const pageToUpdate = { ...docToUpdate.pages[pageIndexInDoc], rotation: newRotation, thumbnailUrl: newThumbnailUrl };
     docToUpdate.pages = [...docToUpdate.pages];
@@ -132,21 +132,21 @@ export function DocflowDashboard() {
     // Refresh thumbnails for the entire document to reflect page number changes
     for (let i = 0; i < docToUpdate.pages.length; i++) {
       const page = docToUpdate.pages[i];
-      page.thumbnailUrl = await renderPageAsThumbnail(docToUpdate.pdfLibDoc, i + 1, page.rotation);
+      page.thumbnailUrl = await renderPageAsThumbnail(docToUpdate.pdfLibDoc, i + 1);
     }
   
     updatedDocuments[docIndex] = docToUpdate;
     setDocuments(updatedDocuments);
   };
 
-  const handleReorderPage = async (docId: string, dragIndex: number, hoverIndex: number) => {
+  const handleReorderPage = (docId: string, dragIndex: number, hoverIndex: number) => {
     const docIndex = documents.findIndex((d) => d.id === docId);
     if (docIndex === -1) return;
 
     const updatedDocuments = [...documents];
     const docToUpdate = { ...updatedDocuments[docIndex] };
     
-    const { newDoc } = await reorderPageInDoc(docToUpdate.pdfLibDoc, dragIndex, hoverIndex);
+    const { newDoc } = reorderPageInDoc(docToUpdate.pdfLibDoc, dragIndex, hoverIndex);
     docToUpdate.pdfLibDoc = newDoc;
     
     const reorderedPages = [...docToUpdate.pages];
