@@ -68,7 +68,7 @@ export function DocumentList({
             key={doc.id}
             onClick={() => onSelectDocument(doc.id)}
             className={cn(
-              "p-3 cursor-pointer transition-all relative group",
+              "p-3 cursor-pointer transition-all group",
               activeDocumentId === doc.id
                 ? "border-primary ring-2 ring-primary bg-primary/5"
                 : "hover:bg-muted/50"
@@ -77,30 +77,32 @@ export function DocumentList({
             <div className="flex items-center gap-3">
               <FileText className="h-6 w-6 text-primary/80" />
               <p className="text-sm font-medium truncate flex-1">{doc.name}</p>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleMergeSelection(doc.id);
-                }}
-                className={cn(
-                  "h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors",
-                  selectedToMerge.has(doc.id) ? "bg-accent border-accent" : "bg-transparent border-border"
-                )}
-              >
-                {selectedToMerge.has(doc.id) && <Check className="h-3 w-3 text-accent-foreground" />}
-              </button>
-            </div>
-             <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => {
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={(e) => {
                     e.stopPropagation();
-                    onDeleteDocument(doc.id);
-                }}
-            >
-                <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
+                    toggleMergeSelection(doc.id);
+                  }}
+                  className={cn(
+                    "h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors",
+                    selectedToMerge.has(doc.id) ? "bg-accent border-accent" : "bg-transparent border-border"
+                  )}
+                >
+                  {selectedToMerge.has(doc.id) && <Check className="h-3 w-3 text-accent-foreground" />}
+                </button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteDocument(doc.id);
+                    }}
+                >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            </div>
           </Card>
         ))}
       </div>
