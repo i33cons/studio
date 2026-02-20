@@ -71,7 +71,7 @@ export function DocflowDashboard() {
       toast({
         variant: "destructive",
         title: "Upload Failed",
-        description: "There was an error processing your PDFs.",
+        description: error instanceof Error ? error.message : "There was an error processing your PDFs.",
       });
     } finally {
       setIsLoading(false);
@@ -174,7 +174,7 @@ export function DocflowDashboard() {
       document.body.removeChild(link);
       toast({ title: "Success", description: "Your PDF has been saved." });
     } catch(e) {
-      toast({ variant: "destructive", title: "Error saving PDF" });
+      toast({ variant: "destructive", title: "Error saving PDF", description: e instanceof Error ? e.message : "Could not save PDF." });
     } finally {
       setIsLoading(false);
     }
@@ -197,7 +197,7 @@ export function DocflowDashboard() {
       await handleFileDrop([newFile]);
       toast({ title: "Success", description: "PDFs merged successfully." });
     } catch(e) {
-       toast({ variant: "destructive", title: "Error merging PDFs" });
+       toast({ variant: "destructive", title: "Error merging PDFs", description: e instanceof Error ? e.message : "Could not merge PDFs." });
     } finally {
       setIsLoading(false);
     }

@@ -1,28 +1,55 @@
 // This file uses pdf-lib and pdf.js from CDN scripts loaded in layout.tsx
 // We use `any` types as we can't import the types directly.
 
-let pdfLibInstance: any = null;
+const SCRIPT_LOAD_TIMEOUT = 10000; // 10 seconds
+
+// Singleton promises to manage library loading
+let pdfLibPromise: Promise<any> | null = null;
+let pdfjsLibPromise: Promise<any> | null = null;
+
 async function getPdfLib() {
-  if (pdfLibInstance) return pdfLibInstance;
-  while (typeof (window as any).pdfLib === 'undefined') {
-    await new Promise(resolve => setTimeout(resolve, 100));
+  if (!pdfLibPromise) {
+    pdfLibPromise = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        clearInterval(interval);
+        reject(new Error("Timed out after 10 seconds waiting for pdf-lib.min.js to load. Check your network connection."));
+      }, SCRIPT_LOAD_TIMEOUT);
+
+      const interval = setInterval(() => {
+        if (typeof (window as any).pdfLib !== 'undefined') {
+          clearTimeout(timeout);
+          clearInterval(interval);
+          resolve((window as any).pdfLib);
+        }
+      }, 100);
+    });
   }
-  pdfLibInstance = (window as any).pdfLib;
-  return pdfLibInstance;
+  return pdfLibPromise;
 }
 
-let pdfjsLibInstance: any = null;
 async function getPdfJs() {
-  if (pdfjsLibInstance) return pdfjsLibInstance;
+    if (!pdfjsLibPromise) {
+        pdfjsLibPromise = new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                clearInterval(interval);
+                reject(new Error("Timed out after 10 seconds waiting for pdf.min.js to load. Check your network connection."));
+            }, SCRIPT_LOAD_TIMEOUT);
 
-  while (typeof (window as any).pdfjsLib === 'undefined') {
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-  
-  const pdfjsLib = (window as any).pdfjsLib;
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
-  pdfjsLibInstance = pdfjsLib;
-  return pdfjsLibInstance;
+            const interval = setInterval(() => {
+                if (typeof (window as any).pdfjsLib !== 'undefined') {
+                    clearTimeout(timeout);
+                    clearInterval(interval);
+                    const pdfjsLib = (window as any).pdfjsLib;
+                    // Configure the worker only once
+                    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+                        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
+                    }
+                    resolve(pdfjsLib);
+                }
+            }, 100);
+        });
+    }
+    return pdfjsLibPromise;
 }
 
 /**
