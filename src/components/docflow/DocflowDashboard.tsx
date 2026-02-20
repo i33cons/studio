@@ -39,7 +39,7 @@ export function DocflowDashboard() {
         const { pdfLibDoc } = await loadPdf(file);
         const pageThumbnails: PageThumbnail[] = [];
         for (let i = 0; i < pdfLibDoc.getPageCount(); i++) {
-          const thumbnailUrl = await renderPageAsThumbnail(file, i + 1, 0);
+          const thumbnailUrl = await renderPageAsThumbnail(pdfLibDoc, i + 1, 0);
           pageThumbnails.push({
             id: `${file.name}-page-${i}`,
             pageIndex: i,
@@ -93,7 +93,7 @@ export function DocflowDashboard() {
     const { newDoc, newRotation } = await rotatePageInDoc(docToUpdate.pdfLibDoc, originalPageIndex);
     docToUpdate.pdfLibDoc = newDoc;
 
-    const newThumbnailUrl = await renderPageAsThumbnail(docToUpdate.file, originalPageIndex + 1, newRotation);
+    const newThumbnailUrl = await renderPageAsThumbnail(docToUpdate.pdfLibDoc, originalPageIndex + 1, newRotation);
     
     const pageToUpdate = { ...docToUpdate.pages[pageIndexInDoc], rotation: newRotation, thumbnailUrl: newThumbnailUrl };
     docToUpdate.pages = [...docToUpdate.pages];
@@ -106,29 +106,36 @@ export function DocflowDashboard() {
   const handleDeletePage = async (docId: string, pageId: string) => {
     const docIndex = documents.findIndex((d) => d.id === docId);
     if (docIndex === -1) return;
-
+  
     const pageIndexInDoc = documents[docIndex].pages.findIndex((p) => p.id === pageId);
     if (pageIndexInDoc === -1) return;
-
+  
     const originalPageIndex = documents[docIndex].pages[pageIndexInDoc].pageIndex;
-
+  
     const updatedDocuments = [...documents];
     const docToUpdate = { ...updatedDocuments[docIndex] };
-
+  
+    // Delete the page from the pdf-lib document
     const { newDoc } = await deletePageInDoc(docToUpdate.pdfLibDoc, originalPageIndex);
     docToUpdate.pdfLibDoc = newDoc;
-    
-    // Adjust page indices after deletion
+  
+    // Create a new pages array, and re-calculate pageIndex for UI consistency.
     const remainingPages = docToUpdate.pages
       .filter((p) => p.id !== pageId)
-      .map(p => ({
+      .map((p, i) => ({
         ...p,
-        pageIndex: p.pageIndex > originalPageIndex ? p.pageIndex - 1 : p.pageIndex,
+        pageIndex: i, // The new pageIndex is simply its index in the new array
       }));
-
+  
     docToUpdate.pages = remainingPages;
+  
+    // Refresh thumbnails for the entire document to reflect page number changes
+    for (let i = 0; i < docToUpdate.pages.length; i++) {
+      const page = docToUpdate.pages[i];
+      page.thumbnailUrl = await renderPageAsThumbnail(docToUpdate.pdfLibDoc, i + 1, page.rotation);
+    }
+  
     updatedDocuments[docIndex] = docToUpdate;
-    
     setDocuments(updatedDocuments);
   };
 
@@ -138,23 +145,17 @@ export function DocflowDashboard() {
 
     const updatedDocuments = [...documents];
     const docToUpdate = { ...updatedDocuments[docIndex] };
-    const originalDragIndex = docToUpdate.pages[dragIndex].pageIndex;
-    const originalHoverIndex = docToUpdate.pages[hoverIndex].pageIndex;
-
-    const { newDoc } = await reorderPageInDoc(docToUpdate.pdfLibDoc, originalDragIndex, originalHoverIndex);
+    
+    const { newDoc } = await reorderPageInDoc(docToUpdate.pdfLibDoc, dragIndex, hoverIndex);
     docToUpdate.pdfLibDoc = newDoc;
     
-    const draggedPage = docToUpdate.pages[dragIndex];
-    const newPages = [...docToUpdate.pages];
-    newPages.splice(dragIndex, 1);
-    newPages.splice(hoverIndex, 0, draggedPage);
+    const reorderedPages = [...docToUpdate.pages];
+    const [draggedPage] = reorderedPages.splice(dragIndex, 1);
+    reorderedPages.splice(hoverIndex, 0, draggedPage);
     
-    // Update pageIndex to reflect new order for future manipulations
-    newPages.forEach((p, i) => {
-      p.pageIndex = i;
-    });
+    // Update pageIndex to reflect new visual order
+    docToUpdate.pages = reorderedPages.map((p, i) => ({ ...p, pageIndex: i }));
 
-    docToUpdate.pages = newPages;
     updatedDocuments[docIndex] = docToUpdate;
     setDocuments(updatedDocuments);
   };
@@ -194,8 +195,9 @@ export function DocflowDashboard() {
       const docsToMerge = documents.filter(doc => docIds.includes(doc.id));
       const { pdfLibDoc } = await mergePdfs(docsToMerge.map(d => d.pdfLibDoc));
       const newFile = new File([await pdfLibDoc.save()], 'merged.pdf', { type: 'application/pdf' });
+      // Use existing handleFileDrop to add the new merged PDF
       await handleFileDrop([newFile]);
-      toast({ title: "Success", description: "PDFs merged successfully." });
+      toast({ title: "Success", description: "PDFs merged. New 'merged.pdf' created." });
     } catch(e) {
        toast({ variant: "destructive", title: "Error merging PDFs", description: e instanceof Error ? e.message : "Could not merge PDFs." });
     } finally {
@@ -204,10 +206,13 @@ export function DocflowDashboard() {
   };
   
   const handleDeleteDocument = (docId: string) => {
-    setDocuments(docs => docs.filter(d => d.id !== docId));
-    if (activeDocumentId === docId) {
-      setActiveDocumentId(documents.length > 1 ? documents.filter(d => d.id !== docId)[0].id : null);
-    }
+    setDocuments(docs => {
+        const newDocs = docs.filter(d => d.id !== docId);
+        if (activeDocumentId === docId) {
+            setActiveDocumentId(newDocs.length > 0 ? newDocs[0].id : null);
+        }
+        return newDocs;
+    });
   };
 
 
@@ -230,6 +235,7 @@ export function DocflowDashboard() {
         onDeleteDocument={handleDeleteDocument}
         onMergePdfs={handleMergePdfs}
         allFiles={documents.map(d => d.file)}
+        onFileDrop={handleFileDrop}
       />
       <DocumentWorkspace
         document={activeDocument}
