@@ -13,7 +13,11 @@ async function getPdfJs() {
   while (typeof (window as any).pdfjsLib === 'undefined') {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  return (window as any).pdfjsLib;
+  const pdfjsLib = (window as any).pdfjsLib;
+  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
+  }
+  return pdfjsLib;
 }
 
 /**

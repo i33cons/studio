@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import type { DocumentState, PageThumbnail } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -21,13 +21,6 @@ export function DocflowDashboard() {
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-
-  useEffect(() => {
-    // Set pdf.js worker source from CDN
-    if (typeof window !== "undefined" && (window as any).pdfjsLib) {
-      (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
-    }
-  }, []);
 
   const handleFileDrop = useCallback(async (files: File[]) => {
     setIsLoading(true);
