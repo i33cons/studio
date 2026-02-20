@@ -1,22 +1,28 @@
 // This file uses pdf-lib and pdf.js from CDN scripts loaded in layout.tsx
 // We use `any` types as we can't import the types directly.
 
-// Helper to ensure libraries are loaded
+let pdfLibInstance: any = null;
 async function getPdfLib() {
+  if (pdfLibInstance) return pdfLibInstance;
   while (typeof (window as any).pdfLib === 'undefined') {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  return (window as any).pdfLib;
+  pdfLibInstance = (window as any).pdfLib;
+  return pdfLibInstance;
 }
 
+let pdfjsLibInstance: any = null;
 async function getPdfJs() {
+  if (pdfjsLibInstance) return pdfjsLibInstance;
+
   while (typeof (window as any).pdfjsLib === 'undefined') {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
+  
   const pdfjsLib = (window as any).pdfjsLib;
-  // Always set the worker source to avoid race conditions or unexpected states.
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
-  return pdfjsLib;
+  pdfjsLibInstance = pdfjsLib;
+  return pdfjsLibInstance;
 }
 
 /**
@@ -78,8 +84,12 @@ export async function deletePageInDoc(doc: any, pageIndex: number) {
  * Reorders a page in a pdf-lib document.
  */
 export async function reorderPageInDoc(doc: any, fromIndex: number, toIndex: number) {
-  const [page] = doc.getPages().splice(fromIndex, 1);
-  doc.getPages().splice(toIndex, 0, page);
+  const [page] = await doc.copyPages(doc, [fromIndex]);
+  doc.removePage(fromIndex);
+  
+  // Adjust index if moving to a later position
+  const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+  doc.insertPage(insertIndex, page);
   return { newDoc: doc };
 }
 
