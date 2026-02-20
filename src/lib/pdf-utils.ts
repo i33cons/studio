@@ -1,12 +1,16 @@
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, degrees } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 
 // By installing pdfjs-dist via npm, we can avoid CDN loading issues.
 // We set the workerSrc to a reliable CDN URL as a pragmatic way
 // to avoid complex bundler configurations for the worker file.
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/build/pdf.worker.min.js',
+    import.meta.url,
+  ).toString();
 }
+
 
 /**
  * Loads a PDF file into a pdf-lib document object.
@@ -49,9 +53,8 @@ export async function renderPageAsThumbnail(
  */
 export async function rotatePageInDoc(doc: any, pageIndex: number) {
   const page = doc.getPages()[pageIndex];
-  const currentRotation = page.getRotation().angle;
-  const newRotation = (currentRotation + 90) % 360;
-  page.setRotation(newRotation);
+  page.rotate(degrees(90));
+  const newRotation = page.getRotation().angle;
   return { newDoc: doc, newRotation };
 }
 
