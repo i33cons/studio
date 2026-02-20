@@ -15,6 +15,7 @@ import {
 import { FileDropzone } from "@/components/docflow/FileDropzone";
 import { DocumentList } from "@/components/docflow/DocumentList";
 import { DocumentWorkspace } from "@/components/docflow/DocumentWorkspace";
+import type { PDFDocument } from "pdf-lib";
 
 export function DocflowDashboard() {
   const [documents, setDocuments] = useState<DocumentState[]>([]);
@@ -140,26 +141,37 @@ export function DocflowDashboard() {
     setDocuments(updatedDocuments);
   };
 
-  const handleReorderPage = (docId: string, dragIndex: number, hoverIndex: number) => {
-    setDocuments(prevDocs => {
-      const docIndex = prevDocs.findIndex((d) => d.id === docId);
-      if (docIndex === -1) return prevDocs;
-
-      const newDocs = [...prevDocs];
-      const docToUpdate = { ...newDocs[docIndex] };
-      
-      // Mutate the pdf doc synchronously
-      reorderPageInDoc(docToUpdate.pdfLibDoc, dragIndex, hoverIndex);
-
-      // Update the UI state to match
-      const reorderedPages = [...docToUpdate.pages];
-      const [draggedPage] = reorderedPages.splice(dragIndex, 1);
-      reorderedPages.splice(hoverIndex, 0, draggedPage);
-      docToUpdate.pages = reorderedPages.map((p, i) => ({ ...p, pageIndex: i }));
-      
-      newDocs[docIndex] = docToUpdate;
-      return newDocs;
-    });
+  const handleReorderPage = async (docId: string, dragIndex: number, hoverIndex: number) => {
+    const docToUpdate = documents.find((d) => d.id === docId);
+    if (!docToUpdate) return;
+  
+    try {
+      const { newDoc } = await reorderPageInDoc(docToUpdate.pdfLibDoc, dragIndex, hoverIndex);
+  
+      setDocuments((currentDocs) => {
+        const docIndex = currentDocs.findIndex((d) => d.id === docId);
+        if (docIndex === -1) return currentDocs;
+  
+        const reorderedPages = [...currentDocs[docIndex].pages];
+        const [draggedPage] = reorderedPages.splice(dragIndex, 1);
+        reorderedPages.splice(hoverIndex, 0, draggedPage);
+  
+        const newDocs = [...currentDocs];
+        newDocs[docIndex] = {
+          ...newDocs[docIndex],
+          pdfLibDoc: newDoc,
+          pages: reorderedPages.map((p, i) => ({ ...p, pageIndex: i })),
+        };
+        return newDocs;
+      });
+    } catch (e) {
+        console.error("Reorder failed", e);
+        toast({ 
+            variant: "destructive", 
+            title: "Error Reordering Pages", 
+            description: e instanceof Error ? e.message : "Could not reorder pages." 
+        });
+    }
   };
 
   const handleSavePdf = async (docId: string) => {
@@ -195,7 +207,7 @@ export function DocflowDashboard() {
     setIsLoading(true);
     try {
       const docsToMerge = documents.filter(doc => docIds.includes(doc.id));
-      const { pdfLibDoc } = await mergePdfs(docsToMerge.map(d => d.pdfLibDoc));
+      const { pdfLibDoc } = await mergePdfs(docsToMerge.map(d => d.pdfLibDoc as PDFDocument));
       const newFile = new File([await pdfLibDoc.save()], 'merged.pdf', { type: 'application/pdf' });
       const arrayBuffer = await newFile.arrayBuffer();
       // Use existing logic to add the new merged PDF

@@ -1,3 +1,5 @@
+import type { PDFDocument } from 'pdf-lib';
+
 export interface PageThumbnail {
   id: string;
   pageIndex: number;
@@ -9,6 +11,6 @@ export interface DocumentState {
   id: string;
   name: string;
   file: File;
-  pdfLibDoc: any; // PDFDocument from pdf-lib
+  pdfLibDoc: PDFDocument;
   pages: PageThumbnail[];
 }

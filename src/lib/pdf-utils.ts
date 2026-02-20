@@ -19,7 +19,7 @@ export async function loadPdf(fileContent: ArrayBuffer) {
  * Renders a specific page of a PDF as a PNG data URL thumbnail.
  */
 export async function renderPageAsThumbnail(
-  doc: PDFDocument, // pdf-lib PDFDocument
+  doc: PDFDocument,
   pageNumber: number,
 ): Promise<string> {
   // We need to save the document to a buffer to render it with pdf.js
@@ -44,7 +44,7 @@ export async function renderPageAsThumbnail(
 /**
  * Rotates a page in a pdf-lib document.
  */
-export async function rotatePageInDoc(doc: any, pageIndex: number) {
+export async function rotatePageInDoc(doc: PDFDocument, pageIndex: number) {
   const page = doc.getPages()[pageIndex];
   page.setRotation(degrees((page.getRotation().angle + 90) % 360));
   const newRotation = page.getRotation().angle;
@@ -54,32 +54,40 @@ export async function rotatePageInDoc(doc: any, pageIndex: number) {
 /**
  * Deletes a page from a pdf-lib document.
  */
-export async function deletePageInDoc(doc: any, pageIndex: number) {
+export async function deletePageInDoc(doc: PDFDocument, pageIndex: number) {
   doc.removePage(pageIndex);
   return { newDoc: doc };
 }
 
 /**
- * Reorders a page in a pdf-lib document.
- * This is now a synchronous operation that mutates the document.
+ * Reorders a page in a pdf-lib document by creating a new document.
  */
-export function reorderPageInDoc(doc: any, fromIndex: number, toIndex: number) {
-  doc.movePage(fromIndex, toIndex);
-  return { newDoc: doc };
+export async function reorderPageInDoc(doc: PDFDocument, fromIndex: number, toIndex: number) {
+  const newDoc = await PDFDocument.create();
+  const pageIndices = doc.getPageIndices();
+
+  // Re-order the indices
+  const [movedPageIndex] = pageIndices.splice(fromIndex, 1);
+  pageIndices.splice(toIndex, 0, movedPageIndex);
+
+  const copiedPages = await newDoc.copyPages(doc, pageIndices);
+  copiedPages.forEach((page) => newDoc.addPage(page));
+
+  return { newDoc };
 }
 
 
 /**
  * Saves a pdf-lib document to a Uint8Array.
  */
-export async function savePdfToU8Array(doc: any): Promise<Uint8Array> {
+export async function savePdfToU8Array(doc: PDFDocument): Promise<Uint8Array> {
   return await doc.save();
 }
 
 /**
  * Merges multiple pdf-lib documents into one.
  */
-export async function mergePdfs(docsToMerge: any[]) {
+export async function mergePdfs(docsToMerge: PDFDocument[]) {
     const mergedPdf = await PDFDocument.create();
     for (const doc of docsToMerge) {
         const copiedPages = await mergedPdf.copyPages(doc, doc.getPageIndices());
