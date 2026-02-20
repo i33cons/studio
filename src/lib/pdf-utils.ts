@@ -14,9 +14,8 @@ async function getPdfJs() {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   const pdfjsLib = (window as any).pdfjsLib;
-  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
-  }
+  // Always set the worker source to avoid race conditions or unexpected states.
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
   return pdfjsLib;
 }
 
