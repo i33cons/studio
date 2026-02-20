@@ -139,25 +139,31 @@ export function DocflowDashboard() {
     setDocuments(updatedDocuments);
   };
 
-  const handleReorderPage = (docId: string, dragIndex: number, hoverIndex: number) => {
+  const handleReorderPage = async (docId: string, dragIndex: number, hoverIndex: number) => {
     const docIndex = documents.findIndex((d) => d.id === docId);
     if (docIndex === -1) return;
 
-    const updatedDocuments = [...documents];
-    const docToUpdate = { ...updatedDocuments[docIndex] };
+    const docToUpdate = documents[docIndex];
     
-    const { newDoc } = reorderPageInDoc(docToUpdate.pdfLibDoc, dragIndex, hoverIndex);
-    docToUpdate.pdfLibDoc = newDoc;
-    
-    const reorderedPages = [...docToUpdate.pages];
-    const [draggedPage] = reorderedPages.splice(dragIndex, 1);
-    reorderedPages.splice(hoverIndex, 0, draggedPage);
-    
-    // Update pageIndex to reflect new visual order
-    docToUpdate.pages = reorderedPages.map((p, i) => ({ ...p, pageIndex: i }));
+    // This creates a new document, it might be slow but it's correct
+    const { newDoc } = await reorderPageInDoc(docToUpdate.pdfLibDoc, dragIndex, hoverIndex);
 
-    updatedDocuments[docIndex] = docToUpdate;
-    setDocuments(updatedDocuments);
+    // Now update UI and the new doc state together.
+    setDocuments(prevDocs => {
+        const newDocs = [...prevDocs];
+        const newDocState = { ...newDocs[docIndex] };
+        
+        newDocState.pdfLibDoc = newDoc;
+
+        const reorderedPages = [...newDocState.pages];
+        const [draggedPage] = reorderedPages.splice(dragIndex, 1);
+        reorderedPages.splice(hoverIndex, 0, draggedPage);
+        
+        newDocState.pages = reorderedPages.map((p, i) => ({ ...p, pageIndex: i }));
+        
+        newDocs[docIndex] = newDocState;
+        return newDocs;
+    });
   };
 
   const handleSavePdf = async (docId: string) => {

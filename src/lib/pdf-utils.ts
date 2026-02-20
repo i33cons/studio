@@ -1,10 +1,12 @@
 import { PDFDocument, degrees } from 'pdf-lib';
 import * as pdfjs from 'pdfjs-dist';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry';
 
+// This is required for Next.js to correctly load the worker
+// from a static path.
 if (typeof window !== 'undefined') {
-  pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+  pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 }
+
 /**
  * Loads a PDF file into a pdf-lib document object.
  */
@@ -18,7 +20,7 @@ export async function loadPdf(file: File) {
  * Renders a specific page of a PDF as a PNG data URL thumbnail.
  */
 export async function renderPageAsThumbnail(
-  doc: any, // pdf-lib PDFDocument
+  doc: PDFDocument, // pdf-lib PDFDocument
   pageNumber: number,
 ): Promise<string> {
   const pdfBytes = await doc.save();
@@ -42,10 +44,9 @@ export async function renderPageAsThumbnail(
 /**
  * Rotates a page in a pdf-lib document.
  */
-export async function rotatePageInDoc(doc: any, pageIndex: number) {
+export async function rotatePageInDoc(doc: PDFDocument, pageIndex: number) {
   const page = doc.getPages()[pageIndex];
-  const currentRotation = page.getRotation().angle;
-  const newRotation = (currentRotation + 90) % 360;
+  const newRotation = (page.getRotation().angle + 90) % 360;
   page.setRotation(degrees(newRotation));
   return { newDoc: doc, newRotation };
 }
@@ -53,31 +54,33 @@ export async function rotatePageInDoc(doc: any, pageIndex: number) {
 /**
  * Deletes a page from a pdf-lib document.
  */
-export async function deletePageInDoc(doc: any, pageIndex: number) {
+export async function deletePageInDoc(doc: PDFDocument, pageIndex: number) {
   doc.removePage(pageIndex);
   return { newDoc: doc };
 }
 
 /**
  * Reorders a page in a pdf-lib document.
+ * This is an expensive operation as it creates a new document.
  */
-export function reorderPageInDoc(doc: any, fromIndex: number, toIndex: number) {
-  doc.movePage(fromIndex, toIndex);
-  return { newDoc: doc };
+export async function reorderPageInDoc(doc: PDFDocument, fromIndex: number, toIndex: number) {
+  const newDoc = await doc.copy();
+  newDoc.movePage(fromIndex, toIndex);
+  return { newDoc };
 }
 
 
 /**
  * Saves a pdf-lib document to a Uint8Array.
  */
-export async function savePdfToU8Array(doc: any): Promise<Uint8Array> {
+export async function savePdfToU8Array(doc: PDFDocument): Promise<Uint8Array> {
   return await doc.save();
 }
 
 /**
  * Merges multiple pdf-lib documents into one.
  */
-export async function mergePdfs(docsToMerge: any[]) {
+export async function mergePdfs(docsToMerge: PDFDocument[]) {
     const mergedPdf = await PDFDocument.create();
     for (const doc of docsToMerge) {
         const copiedPages = await mergedPdf.copyPages(doc, doc.getPageIndices());
