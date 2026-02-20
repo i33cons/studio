@@ -27,11 +27,11 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <Script
-          src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"
+          src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"
           strategy="beforeInteractive"
         />
         <Script
-          src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"
+          src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"
           strategy="beforeInteractive"
         />
       </head>

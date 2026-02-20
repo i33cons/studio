@@ -39,7 +39,7 @@ async function getPdfJs() {
                 if (typeof (window as any).pdfjsLib !== 'undefined') {
                     clearTimeout(timeout);
                     clearInterval(interval);
-                    (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
+                    (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
                     resolve((window as any).pdfjsLib);
                 }
             }, 100);
