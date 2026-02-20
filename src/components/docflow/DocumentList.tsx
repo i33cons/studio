@@ -15,7 +15,6 @@ interface DocumentListProps {
   onSelectDocument: (id: string) => void;
   onDeleteDocument: (id: string) => void;
   onMergePdfs: (docIds: string[]) => void;
-  allFiles: File[];
   onFileDrop: (files: File[]) => void;
 }
 
@@ -25,7 +24,6 @@ export function DocumentList({
   onSelectDocument,
   onDeleteDocument,
   onMergePdfs,
-  allFiles,
   onFileDrop,
 }: DocumentListProps) {
   const [selectedToMerge, setSelectedToMerge] = useState<Set<string>>(new Set());
@@ -52,6 +50,8 @@ export function DocumentList({
     setSelectedToMerge(new Set());
   };
 
+  const allFiles = documents.map(d => d.file);
+
   return (
     <aside
       {...getRootProps()}
@@ -77,27 +77,29 @@ export function DocumentList({
             <div className="flex items-center gap-3">
               <FileText className="h-6 w-6 text-primary/80" />
               <p className="text-sm font-medium truncate flex-1">{doc.name}</p>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleMergeSelection(doc.id);
                   }}
                   className={cn(
-                    "h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors",
+                    "h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
                     selectedToMerge.has(doc.id) ? "bg-accent border-accent" : "bg-transparent border-border"
                   )}
+                  aria-label={selectedToMerge.has(doc.id) ? 'Deselect for merge' : 'Select for merge'}
                 >
                   {selectedToMerge.has(doc.id) && <Check className="h-3 w-3 text-accent-foreground" />}
                 </button>
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="h-7 w-7 shrink-0"
                     onClick={(e) => {
                         e.stopPropagation();
                         onDeleteDocument(doc.id);
                     }}
+                    aria-label={`Delete ${doc.name}`}
                 >
                     <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>

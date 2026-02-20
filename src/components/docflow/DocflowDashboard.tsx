@@ -36,7 +36,8 @@ export function DocflowDashboard() {
           continue;
         }
 
-        const { pdfLibDoc } = await loadPdf(file);
+        const arrayBuffer = await file.arrayBuffer();
+        const { pdfLibDoc } = await loadPdf(arrayBuffer);
         const pageThumbnails: PageThumbnail[] = [];
         for (let i = 0; i < pdfLibDoc.getPageCount(); i++) {
           const thumbnailUrl = await renderPageAsThumbnail(pdfLibDoc, i + 1);
@@ -139,30 +140,25 @@ export function DocflowDashboard() {
     setDocuments(updatedDocuments);
   };
 
-  const handleReorderPage = async (docId: string, dragIndex: number, hoverIndex: number) => {
-    const docIndex = documents.findIndex((d) => d.id === docId);
-    if (docIndex === -1) return;
-
-    const docToUpdate = documents[docIndex];
-    
-    // This creates a new document, it might be slow but it's correct
-    const { newDoc } = await reorderPageInDoc(docToUpdate.pdfLibDoc, dragIndex, hoverIndex);
-
-    // Now update UI and the new doc state together.
+  const handleReorderPage = (docId: string, dragIndex: number, hoverIndex: number) => {
     setDocuments(prevDocs => {
-        const newDocs = [...prevDocs];
-        const newDocState = { ...newDocs[docIndex] };
-        
-        newDocState.pdfLibDoc = newDoc;
+      const docIndex = prevDocs.findIndex((d) => d.id === docId);
+      if (docIndex === -1) return prevDocs;
 
-        const reorderedPages = [...newDocState.pages];
-        const [draggedPage] = reorderedPages.splice(dragIndex, 1);
-        reorderedPages.splice(hoverIndex, 0, draggedPage);
-        
-        newDocState.pages = reorderedPages.map((p, i) => ({ ...p, pageIndex: i }));
-        
-        newDocs[docIndex] = newDocState;
-        return newDocs;
+      const newDocs = [...prevDocs];
+      const docToUpdate = { ...newDocs[docIndex] };
+      
+      // Mutate the pdf doc synchronously
+      reorderPageInDoc(docToUpdate.pdfLibDoc, dragIndex, hoverIndex);
+
+      // Update the UI state to match
+      const reorderedPages = [...docToUpdate.pages];
+      const [draggedPage] = reorderedPages.splice(dragIndex, 1);
+      reorderedPages.splice(hoverIndex, 0, draggedPage);
+      docToUpdate.pages = reorderedPages.map((p, i) => ({ ...p, pageIndex: i }));
+      
+      newDocs[docIndex] = docToUpdate;
+      return newDocs;
     });
   };
 
@@ -201,8 +197,31 @@ export function DocflowDashboard() {
       const docsToMerge = documents.filter(doc => docIds.includes(doc.id));
       const { pdfLibDoc } = await mergePdfs(docsToMerge.map(d => d.pdfLibDoc));
       const newFile = new File([await pdfLibDoc.save()], 'merged.pdf', { type: 'application/pdf' });
-      // Use existing handleFileDrop to add the new merged PDF
-      await handleFileDrop([newFile]);
+      const arrayBuffer = await newFile.arrayBuffer();
+      // Use existing logic to add the new merged PDF
+      const { pdfLibDoc: newPdfLibDoc } = await loadPdf(arrayBuffer);
+      const pageThumbnails: PageThumbnail[] = [];
+      for (let i = 0; i < newPdfLibDoc.getPageCount(); i++) {
+        const thumbnailUrl = await renderPageAsThumbnail(newPdfLibDoc, i + 1);
+        pageThumbnails.push({
+          id: `merged.pdf-page-${i}`,
+          pageIndex: i,
+          rotation: 0,
+          thumbnailUrl,
+        });
+      }
+      const newMergedDocument: DocumentState = {
+        id: 'merged.pdf' + Date.now(),
+        name: 'merged.pdf',
+        file: newFile,
+        pdfLibDoc: newPdfLibDoc,
+        pages: pageThumbnails,
+      };
+
+      const updatedDocuments = [...documents, newMergedDocument];
+      setDocuments(updatedDocuments);
+      setActiveDocumentId(newMergedDocument.id);
+
       toast({ title: "Success", description: "PDFs merged. New 'merged.pdf' created." });
     } catch(e) {
        toast({ variant: "destructive", title: "Error merging PDFs", description: e instanceof Error ? e.message : "Could not merge PDFs." });
@@ -240,7 +259,6 @@ export function DocflowDashboard() {
         onSelectDocument={setActiveDocumentId}
         onDeleteDocument={handleDeleteDocument}
         onMergePdfs={handleMergePdfs}
-        allFiles={documents.map(d => d.file)}
         onFileDrop={handleFileDrop}
       />
       <DocumentWorkspace
