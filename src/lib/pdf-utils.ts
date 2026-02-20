@@ -21,12 +21,13 @@ export async function loadPdf(file: File) {
  * Renders a specific page of a PDF as a PNG data URL thumbnail.
  */
 export async function renderPageAsThumbnail(
-  file: File,
+  doc: any, // pdf-lib PDFDocument
   pageNumber: number,
   rotation: number
 ): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
-  const data = new Uint8Array(arrayBuffer);
+  // pdf-lib docs need to be saved to a buffer to be rendered by pdf.js
+  const pdfBytes = await doc.save();
+  const data = new Uint8Array(pdfBytes);
   const pdf = await pdfjsLib.getDocument({ data }).promise;
   const page = await pdf.getPage(pageNumber);
 
