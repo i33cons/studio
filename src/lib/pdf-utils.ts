@@ -39,12 +39,8 @@ async function getPdfJs() {
                 if (typeof (window as any).pdfjsLib !== 'undefined') {
                     clearTimeout(timeout);
                     clearInterval(interval);
-                    const pdfjsLib = (window as any).pdfjsLib;
-                    // Configure the worker only once
-                    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-                        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
-                    }
-                    resolve(pdfjsLib);
+                    (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
+                    resolve((window as any).pdfjsLib);
                 }
             }, 100);
         });

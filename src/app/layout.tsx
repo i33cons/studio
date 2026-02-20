@@ -26,10 +26,6 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"
           rel="stylesheet"
         />
-      </head>
-      <body className="font-body antialiased">
-        {children}
-        <Toaster />
         <Script
           src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"
           strategy="beforeInteractive"
@@ -38,6 +34,10 @@ export default function RootLayout({
           src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"
           strategy="beforeInteractive"
         />
+      </head>
+      <body className="font-body antialiased">
+        {children}
+        <Toaster />
       </body>
     </html>
   );
