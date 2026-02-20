@@ -5,12 +5,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 // We set the workerSrc to a reliable CDN URL as a pragmatic way
 // to avoid complex bundler configurations for the worker file.
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.js',
-    import.meta.url,
-  ).toString();
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
 }
-
 
 /**
  * Loads a PDF file into a pdf-lib document object.
@@ -29,7 +25,6 @@ export async function renderPageAsThumbnail(
   pageNumber: number,
   rotation: number
 ): Promise<string> {
-  // pdf-lib docs need to be saved to a buffer to be rendered by pdf.js
   const pdfBytes = await doc.save();
   const data = new Uint8Array(pdfBytes);
   const pdf = await pdfjsLib.getDocument({ data }).promise;
@@ -53,8 +48,9 @@ export async function renderPageAsThumbnail(
  */
 export async function rotatePageInDoc(doc: any, pageIndex: number) {
   const page = doc.getPages()[pageIndex];
-  page.rotate(degrees(90));
-  const newRotation = page.getRotation().angle;
+  const currentRotation = page.getRotation().angle;
+  const newRotation = (currentRotation + 90) % 360;
+  page.setRotation(degrees(newRotation));
   return { newDoc: doc, newRotation };
 }
 
@@ -71,10 +67,12 @@ export async function deletePageInDoc(doc: any, pageIndex: number) {
  */
 export async function reorderPageInDoc(doc: any, fromIndex: number, toIndex: number) {
   const [page] = await doc.copyPages(doc, [fromIndex]);
-  doc.removePage(fromIndex);
   doc.insertPage(toIndex, page);
+  // Adjust index for removal based on whether we moved the page forwards or backwards
+  doc.removePage(fromIndex > toIndex ? fromIndex + 1 : fromIndex);
   return { newDoc: doc };
 }
+
 
 /**
  * Saves a pdf-lib document to a Uint8Array.
