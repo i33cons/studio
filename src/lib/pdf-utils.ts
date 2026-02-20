@@ -1,60 +1,19 @@
-// This file uses pdf-lib and pdf.js from CDN scripts loaded in layout.tsx
-// We use `any` types as we can't import the types directly.
+import { PDFDocument } from 'pdf-lib';
+import * as pdfjsLib from 'pdfjs-dist';
 
-const SCRIPT_LOAD_TIMEOUT = 10000; // 10 seconds
-
-// Singleton promises to manage library loading
-let pdfLibPromise: Promise<any> | null = null;
-let pdfjsLibPromise: Promise<any> | null = null;
-
-async function getPdfLib() {
-  if (!pdfLibPromise) {
-    pdfLibPromise = new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        clearInterval(interval);
-        reject(new Error("Timed out after 10 seconds waiting for pdf-lib.min.js to load. Check your network connection."));
-      }, SCRIPT_LOAD_TIMEOUT);
-
-      const interval = setInterval(() => {
-        if (typeof (window as any).pdfLib !== 'undefined') {
-          clearTimeout(timeout);
-          clearInterval(interval);
-          resolve((window as any).pdfLib);
-        }
-      }, 100);
-    });
-  }
-  return pdfLibPromise;
-}
-
-async function getPdfJs() {
-    if (!pdfjsLibPromise) {
-        pdfjsLibPromise = new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                clearInterval(interval);
-                reject(new Error("Timed out after 10 seconds waiting for pdf.min.js to load. Check your network connection."));
-            }, SCRIPT_LOAD_TIMEOUT);
-
-            const interval = setInterval(() => {
-                if (typeof (window as any).pdfjsLib !== 'undefined') {
-                    clearTimeout(timeout);
-                    clearInterval(interval);
-                    (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
-                    resolve((window as any).pdfjsLib);
-                }
-            }, 100);
-        });
-    }
-    return pdfjsLibPromise;
+// By installing pdfjs-dist via npm, we can avoid CDN loading issues.
+// We set the workerSrc to a reliable CDN URL as a pragmatic way
+// to avoid complex bundler configurations for the worker file.
+if (typeof window !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
 }
 
 /**
  * Loads a PDF file into a pdf-lib document object.
  */
 export async function loadPdf(file: File) {
-  const pdfLib = await getPdfLib();
   const arrayBuffer = await file.arrayBuffer();
-  const pdfLibDoc = await pdfLib.PDFDocument.load(arrayBuffer);
+  const pdfLibDoc = await PDFDocument.load(arrayBuffer);
   return { pdfLibDoc };
 }
 
@@ -66,9 +25,9 @@ export async function renderPageAsThumbnail(
   pageNumber: number,
   rotation: number
 ): Promise<string> {
-  const pdfjsLib = await getPdfJs();
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const data = new Uint8Array(arrayBuffer);
+  const pdf = await pdfjsLib.getDocument({ data }).promise;
   const page = await pdf.getPage(pageNumber);
 
   const viewport = page.getViewport({ scale: 0.5, rotation });
@@ -109,10 +68,7 @@ export async function deletePageInDoc(doc: any, pageIndex: number) {
 export async function reorderPageInDoc(doc: any, fromIndex: number, toIndex: number) {
   const [page] = await doc.copyPages(doc, [fromIndex]);
   doc.removePage(fromIndex);
-  
-  // Adjust index if moving to a later position
-  const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
-  doc.insertPage(insertIndex, page);
+  doc.insertPage(toIndex, page);
   return { newDoc: doc };
 }
 
@@ -127,8 +83,7 @@ export async function savePdfToU8Array(doc: any): Promise<Uint8Array> {
  * Merges multiple pdf-lib documents into one.
  */
 export async function mergePdfs(docsToMerge: any[]) {
-    const pdfLib = await getPdfLib();
-    const mergedPdf = await pdfLib.PDFDocument.create();
+    const mergedPdf = await PDFDocument.create();
     for (const doc of docsToMerge) {
         const copiedPages = await mergedPdf.copyPages(doc, doc.getPageIndices());
         copiedPages.forEach((page: any) => mergedPdf.addPage(page));
