@@ -52,11 +52,41 @@ export function OcrModal({ allFiles }: OcrModalProps) {
       reader.onload = async () => {
         const pdfDataUri = reader.result as string;
         try {
-          // Lazy-load heavy libraries in client only
-          const [{ createWorker }, pdfjsLib] = await Promise.all([
-            import('tesseract.js'),
-            import('pdfjs-dist/legacy/build/pdf'),
-          ]);
+          // Load tesseract.js  
+          const { createWorker } = await import('tesseract.js');
+
+          // Load pdfjs from CDN to avoid bundler/worker issues
+          const pdfjsLib = await (async () => {
+            const globalWindow = typeof window !== 'undefined' ? (window as any) : null;
+            if (globalWindow && globalWindow.pdfjsLib) {
+              return globalWindow.pdfjsLib;
+            }
+            
+            // Load PDF.js from CDN script tag
+            return new Promise((resolve, reject) => {
+              if (!globalWindow) {
+                reject(new Error('Window not available'));
+                return;
+              }
+              
+              const script = document.createElement('script');
+              script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+              script.async = true;
+              
+              script.onload = () => {
+                const pdfjs = globalWindow.pdfjsLib || globalWindow.pdfjs;
+                if (pdfjs) {
+                  pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                  resolve(pdfjs);
+                } else {
+                  reject(new Error('PDF.js failed to load from CDN'));
+                }
+              };
+              
+              script.onerror = () => reject(new Error('Failed to load PDF.js from CDN'));
+              document.head.appendChild(script);
+            });
+          })();
 
           // Convert data URI to Uint8Array
           const base64 = pdfDataUri.split(',')[1];
@@ -69,7 +99,7 @@ export function OcrModal({ allFiles }: OcrModalProps) {
           const pdf = await pdfjsLib.getDocument({ data: uint8 }).promise;
 
           const worker = await createWorker({
-            logger: () => {},
+            logger: (msg: any) => console.log('[Tesseract]', msg),
           });
           await worker.load();
           await worker.loadLanguage('eng');
@@ -102,8 +132,10 @@ export function OcrModal({ allFiles }: OcrModalProps) {
           toast({
             variant: 'destructive',
             title: 'Extraction Failed',
-            description: 'Could not extract text from the selected PDF (client).',
+            description: `Error: ${err instanceof Error ? err.message : String(err)}`,
           });
+        } finally {
+          setIsLoading(false);
         }
       };
       reader.onerror = (error) => {
