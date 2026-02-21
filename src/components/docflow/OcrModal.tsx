@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { extractPdfTextWithOcr } from "@/ai/flows/extract-pdf-text-with-ocr";
+// Use the server API route for OCR extraction to be compatible with static export
 
 interface OcrModalProps {
   allFiles: File[];
@@ -51,12 +51,60 @@ export function OcrModal({ allFiles }: OcrModalProps) {
       reader.readAsDataURL(selectedFile);
       reader.onload = async () => {
         const pdfDataUri = reader.result as string;
-        const result = await extractPdfTextWithOcr({ pdfDataUri });
-        setExtractedText(result.extractedText);
-        toast({
-          title: "Extraction Complete",
-          description: `Text has been extracted from ${selectedFile.name}.`,
-        });
+        try {
+          // Lazy-load heavy libraries in client only
+          const [{ createWorker }, pdfjsLib] = await Promise.all([
+            import('tesseract.js'),
+            import('pdfjs-dist/legacy/build/pdf'),
+          ]);
+
+          // Convert data URI to Uint8Array
+          const base64 = pdfDataUri.split(',')[1];
+          const raw = atob(base64);
+          const len = raw.length;
+          const uint8 = new Uint8Array(len);
+          for (let i = 0; i < len; i++) uint8[i] = raw.charCodeAt(i);
+
+          // Load PDF
+          const pdf = await pdfjsLib.getDocument({ data: uint8 }).promise;
+
+          const worker = await createWorker({
+            logger: () => {},
+          });
+          await worker.load();
+          await worker.loadLanguage('eng');
+          await worker.initialize('eng');
+
+          let fullText = '';
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: 1.5 });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            if (!context) continue;
+            canvas.width = Math.floor(viewport.width);
+            canvas.height = Math.floor(viewport.height);
+            await page.render({ canvasContext: context, viewport }).promise;
+
+            const { data: { text } } = await worker.recognize(canvas);
+            fullText += `\n\n${text}`;
+          }
+
+          await worker.terminate();
+
+          setExtractedText(fullText.trim());
+          toast({
+            title: 'Extraction Complete',
+            description: `Text has been extracted from ${selectedFile.name}.`,
+          });
+        } catch (err) {
+          console.error('OCR client failed', err);
+          toast({
+            variant: 'destructive',
+            title: 'Extraction Failed',
+            description: 'Could not extract text from the selected PDF (client).',
+          });
+        }
       };
       reader.onerror = (error) => {
         throw new Error("Failed to read file.");

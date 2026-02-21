@@ -1,4 +1,4 @@
-'use server';
+// Server-only flow: keep as a plain server module (not a Next Server Action)
 /**
  * @fileOverview This file implements a Genkit flow to extract all textual content from a PDF document,
  * including text from scanned images via OCR.
