@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { extractPdfTextWithOcr } from "@/ai/flows/extract-pdf-text-with-ocr";
+import { loadPdf, extractTextLocally } from "@/lib/pdf-utils";
 
 interface OcrModalProps {
   allFiles: File[];
@@ -48,18 +48,35 @@ export function OcrModal({ allFiles }: OcrModalProps) {
 
     try {
       const reader = new FileReader();
-      reader.readAsDataURL(selectedFile);
+      reader.readAsArrayBuffer(selectedFile);
       reader.onload = async () => {
-        const pdfDataUri = reader.result as string;
-        const result = await extractPdfTextWithOcr({ pdfDataUri });
-        setExtractedText(result.extractedText);
-        toast({
-          title: "Extraction Complete",
-          description: `Text has been extracted from ${selectedFile.name}.`,
-        });
+        try {
+          const arrayBuffer = reader.result as ArrayBuffer;
+          const { pdfLibDoc } = await loadPdf(arrayBuffer);
+          const text = await extractTextLocally(pdfLibDoc);
+          setExtractedText(text);
+          toast({
+            title: "Extraction Complete",
+            description: `Text has been extracted locally from ${selectedFile.name}.`,
+          });
+        } catch (error) {
+          console.error("Local extraction failed:", error);
+          toast({
+            variant: "destructive",
+            title: "Extraction Failed",
+            description: "Could not extract text from the selected PDF.",
+          });
+        } finally {
+          setIsLoading(false);
+        }
       };
-      reader.onerror = (error) => {
-        throw new Error("Failed to read file.");
+      reader.onerror = () => {
+        toast({
+          variant: "destructive",
+          title: "File Read Error",
+          description: "Failed to read file.",
+        });
+        setIsLoading(false);
       };
     } catch (error) {
       console.error("OCR Extraction failed:", error);
@@ -68,7 +85,6 @@ export function OcrModal({ allFiles }: OcrModalProps) {
         title: "Extraction Failed",
         description: "Could not extract text from the selected PDF.",
       });
-    } finally {
       setIsLoading(false);
     }
   };
