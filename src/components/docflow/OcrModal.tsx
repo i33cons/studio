@@ -22,11 +22,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { loadPdf, extractTextLocally } from "@/lib/pdf-utils";
 
-interface OcrModalProps {
-  allFiles: File[];
+interface OcrFileItem {
+  id: string;
+  name: string;
+  file: File;
 }
 
-export function OcrModal({ allFiles }: OcrModalProps) {
+interface OcrModalProps {
+  files: OcrFileItem[];
+}
+
+export function OcrModal({ files }: OcrModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [extractedText, setExtractedText] = useState("");
@@ -116,17 +122,18 @@ export function OcrModal({ allFiles }: OcrModalProps) {
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Select
-              onValueChange={(value) =>
-                setSelectedFile(allFiles.find((f) => f.name === value) || null)
-              }
+              onValueChange={(value) => {
+                const item = files.find((f) => f.id === value);
+                setSelectedFile(item ? item.file : null);
+              }}
             >
               <SelectTrigger className="col-span-4">
                 <SelectValue placeholder="Select a PDF file..." />
               </SelectTrigger>
               <SelectContent>
-                {allFiles.map((file) => (
-                  <SelectItem key={file.name} value={file.name}>
-                    {file.name}
+                {files.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.name}
                   </SelectItem>
                 ))}
               </SelectContent>

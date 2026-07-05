@@ -50,7 +50,7 @@ export function DocumentList({
     setSelectedToMerge(new Set());
   };
 
-  const allFiles = documents.map(d => d.file);
+  const ocrFiles = documents.map(d => ({ id: d.id, name: d.name, file: d.file }));
 
   return (
     <aside
@@ -116,7 +116,7 @@ export function DocumentList({
         <Button onClick={handleMerge} disabled={selectedToMerge.size < 2}>
           <Merge className="mr-2 h-4 w-4" /> Merge Selected ({selectedToMerge.size})
         </Button>
-        <OcrModal allFiles={allFiles} />
+        <OcrModal files={ocrFiles} />
       </div>
     </aside>
   );
